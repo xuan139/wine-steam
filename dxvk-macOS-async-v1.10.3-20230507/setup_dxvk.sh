@@ -3,11 +3,11 @@ set -e
 
 export WINEPREFIX=/Volumes/Windows/System/Steam
 
-cp ~/Desktop/dxvk-macOS-async-v1.10.3-20230507/x64/*.dll $WINEPREFIX/drive_c/windows/system32/
-cp ~/Desktop/dxvk-macOS-async-v1.10.3-20230507/x32/*.dll $WINEPREFIX/drive_c/windows/syswow64/
+cp /x64/*.dll $WINEPREFIX/drive_c/windows/system32/
+cp /x32/*.dll $WINEPREFIX/drive_c/windows/syswow64/
 
 # 验证复制结果：列出 system32 目录中的 DLL 文件
-echo "列出 $WINEPREFIX/drive_c/windows/system32/ 中的 DLL 文件："
+echo "ls $WINEPREFIX/drive_c/windows/system32/ 中的 DLL 文件："
 ls -l "$WINEPREFIX/drive_c/windows/system32/" | grep "\.dll$"
 
 # 验证复制结果：列出 syswow64 目录中的 DLL 文件
@@ -26,7 +26,7 @@ export DXVK_HUD=1
 # ls /Volumes/Windows/Steam/drive_c/Program\ Files\ \(x86\)/Steam/Steam.exe
 # /Volumes/Windows/Steam/drive_c/Program Files (x86)/Steam/Steam.exe
 
-export WINEPREFIX=/Volumes/Windows/Steam
+export WINEPREFIX=/Volumes/Windows/System/Steam
 wine /Volumes/Windows/System/Steam/drive_c/Program\ Files\ \(x86\)/Steam/Steam.exe
 
 
