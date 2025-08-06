@@ -70,7 +70,7 @@ fi
 
 # 創建 Info.plist
 print_info "創建 Info.plist..."
-cat > "${CONTENTS_DIR}/Info.plist" << EOF
+cat > "${CONTENTS_DIR}/Info.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -91,6 +91,8 @@ cat > "${CONTENTS_DIR}/Info.plist" << EOF
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
@@ -99,11 +101,10 @@ cat > "${CONTENTS_DIR}/Info.plist" << EOF
     <true/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.games</string>
-    <key>LSEnvironment</key>
-    <dict>
-        <key>DYLD_FALLBACK_LIBRARY_PATH</key>
-        <string>/usr/lib</string>
-    </dict>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSAppleScriptEnabled</key>
+    <false/>
 </dict>
 </plist>
 EOF
@@ -130,13 +131,13 @@ WINE_EXE="$WINE_PATH/wine/bin/wine"
 
 # 檢查 Wine 是否存在
 if [ ! -f "$WINE_EXE" ]; then
-    osascript -e 'display alert "Wine 組件缺失" message "應用程序包中的 Wine 組件不完整。" as critical'
+    osascript -e 'display alert "Wine 組件缺失" message "應用程序包中的 Wine 組件不完整。請重新安裝應用程式。" as critical' 2>/dev/null || echo "Wine 組件缺失"
     exit 1
 fi
 
 # 初始化 Wine 前綴（如果不存在）
 if [ ! -d "$WINEPREFIX/drive_c" ]; then
-    osascript -e 'display notification "正在初始化 Wine 環境..." with title "Wine Steam DXVK"'
+    osascript -e 'display notification "正在初始化 Wine 環境..." with title "Wine Steam DXVK"' 2>/dev/null || echo "正在初始化 Wine 環境..."
     "$WINE_EXE" wineboot --init
 fi
 
@@ -148,26 +149,30 @@ fi
 
 if [ ! -f "$STEAM_EXE" ]; then
     # Steam 未安裝，提示用戶
-    RESPONSE=$(osascript -e 'display dialog "Steam 尚未安裝。是否要下載並安裝 Steam？" buttons {"取消", "安裝 Steam"} default button 2')
+    RESPONSE=$(osascript -e 'display dialog "Steam 尚未安裝。是否要下載並安裝 Steam？" buttons {"取消", "安裝 Steam"} default button 2' 2>/dev/null || echo "button returned:取消")
     
     if [[ "$RESPONSE" == *"安裝 Steam"* ]]; then
         # 下載 Steam 安裝程序
         STEAM_INSTALLER="$HOME/Downloads/SteamSetup.exe"
         if [ ! -f "$STEAM_INSTALLER" ]; then
-            osascript -e 'display notification "正在下載 Steam 安裝程序..." with title "Wine Steam DXVK"'
+            osascript -e 'display notification "正在下載 Steam 安裝程序..." with title "Wine Steam DXVK"' 2>/dev/null || echo "正在下載 Steam..."
             curl -L -o "$STEAM_INSTALLER" "https://cdn.cloudflare.steamstatic.com/client/installer/SteamSetup.exe"
         fi
         
         # 運行安裝程序
-        cd "$(dirname "$STEAM_INSTALLER")"
-        "$WINE_EXE" "$STEAM_INSTALLER"
+        if [ -f "$STEAM_INSTALLER" ]; then
+            cd "$(dirname "$STEAM_INSTALLER")"
+            "$WINE_EXE" "$STEAM_INSTALLER"
+        fi
     else
         exit 0
     fi
 else
     # 運行 Steam
-    cd "$(dirname "$STEAM_EXE")"
-    "$WINE_EXE" "$STEAM_EXE" "$@"
+    if [ -f "$STEAM_EXE" ]; then
+        cd "$(dirname "$STEAM_EXE")"
+        "$WINE_EXE" "$STEAM_EXE" "$@"
+    fi
 fi
 EOF
 
@@ -181,8 +186,14 @@ CONTENTS_PATH="$APP_PATH/Contents"
 export WINEPREFIX="$CONTENTS_PATH/Wine/prefix"
 export PATH="$CONTENTS_PATH/Wine/wine/bin:$PATH"
 export DYLD_FALLBACK_LIBRARY_PATH="$CONTENTS_PATH/Wine/wine/lib:$DYLD_FALLBACK_LIBRARY_PATH"
+export WINEDLLPATH="$CONTENTS_PATH/Wine/wine/lib/wine"
 
-"$CONTENTS_PATH/Wine/wine/bin/winecfg"
+if [ -f "$CONTENTS_PATH/Wine/wine/bin/winecfg" ]; then
+    "$CONTENTS_PATH/Wine/wine/bin/winecfg"
+else
+    echo "錯誤：找不到 winecfg"
+    exit 1
+fi
 EOF
 
 chmod +x "${MACOS_DIR}/wine-config"
@@ -321,6 +332,22 @@ Wine 前綴位置：
 ${APP_DIR}/Contents/Wine/prefix
 EOF
 
+# 設置正確的權限
+print_info "設置應用程式權限..."
+chmod -R 755 "${APP_DIR}"
+chmod +x "${MACOS_DIR}/launcher"
+chmod +x "${MACOS_DIR}/wine-config"
+chmod +x "${APP_DIR}/管理工具.command" 2>/dev/null || true
+
+# 清除擴展屬性和隔離標記
+print_info "清除擴展屬性..."
+xattr -cr "${APP_DIR}" 2>/dev/null || true
+xattr -d com.apple.quarantine "${APP_DIR}" 2>/dev/null || true
+
+# 重建 Launch Services 資料庫
+print_info "註冊應用程式..."
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "${APP_DIR}" 2>/dev/null || true
+
 # 計算應用程序大小
 APP_SIZE=$(du -sh "${APP_DIR}" | cut -f1)
 print_info "應用程序創建完成！"
@@ -331,6 +358,9 @@ echo "  大小: ${APP_SIZE}"
 echo ""
 print_info "這是一個完全獨立的應用程序，無需預裝 Wine！"
 print_info "可以將其複製到任何 Mac 上使用。"
+print_warning "首次運行提示："
+echo "  - 右鍵點擊應用程式，選擇「打開」"
+echo "  - 或在系統偏好設置 > 安全性與隱私 中允許執行"
 
 # 提供壓縮選項
 echo ""
