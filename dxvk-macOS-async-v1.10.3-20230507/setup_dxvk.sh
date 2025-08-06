@@ -1,34 +1,34 @@
 #!/bin/bash
+
 set -e
 
-export WINEPREFIX=/Volumes/Windows/System/Steam
+# WINEPREFIX="$HOME/steam"
+export WINEPREFIX="/Volumes/Windows/System/Steam"
 
-cp /x64/*.dll $WINEPREFIX/drive_c/windows/system32/
-cp /x32/*.dll $WINEPREFIX/drive_c/windows/syswow64/
+DXVK_DIR="$PWD"
 
-# 验证复制结果：列出 system32 目录中的 DLL 文件
-echo "ls $WINEPREFIX/drive_c/windows/system32/ 中的 DLL 文件："
-ls -l "$WINEPREFIX/drive_c/windows/system32/" | grep "\.dll$"
+echo "复制64位DLL到系统目录..."
+cp "$DXVK_DIR/x64/d3d11.dll" "$WINEPREFIX/drive_c/windows/system32/"
+cp "$DXVK_DIR/x64/dxgi.dll" "$WINEPREFIX/drive_c/windows/system32/"
+cp "$DXVK_DIR/x64/d3dcompiler_47.dll" "$WINEPREFIX/drive_c/windows/system32/"
 
-# 验证复制结果：列出 syswow64 目录中的 DLL 文件
-echo "列出 $WINEPREFIX/drive_c/windows/syswow64/ 中的 DLL 文件："
-ls -l "$WINEPREFIX/drive_c/windows/syswow64/" | grep "\.dll$"
+echo "复制32位DLL到syswow64目录..."
+cp "$DXVK_DIR/x32/d3d11.dll" "$WINEPREFIX/drive_c/windows/syswow64/"
+cp "$DXVK_DIR/x32/dxgi.dll" "$WINEPREFIX/drive_c/windows/syswow64/"
+cp "$DXVK_DIR/x32/d3dcompiler_47.dll" "$WINEPREFIX/drive_c/windows/syswow64/"
+
+echo "完成！请使用 winecfg 配置这三个 DLL 为 native, then builtin"
+
 
 winecfg
-
 # 在“Libraries”添加：
 # d3d11，设置为 native,builtin
-# dxgi，设置为 native,builtin
 # d3d10core，设置为 native,builtin
 
 export DXVK_HUD=1
 
-# ls /Volumes/Windows/Steam/drive_c/Program\ Files\ \(x86\)/Steam/Steam.exe
-# /Volumes/Windows/Steam/drive_c/Program Files (x86)/Steam/Steam.exe
+# wine "C:\\Program Files (x86)\\Steam\\steamapps\\common\\3on3 FreeStyle Rebound\\DoubleClutch.exe"
 
-export WINEPREFIX=/Volumes/Windows/System/Steam
+安装 steam 用 wine-stage
+
 wine /Volumes/Windows/System/Steam/drive_c/Program\ Files\ \(x86\)/Steam/Steam.exe
-
-
-
-
